@@ -10,8 +10,8 @@ use Illuminate\Http\Request;
 
 class GroupController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:manage-system')->only(['create', 'store', 'edit', 'update', 'delete']);
         $this->middleware('auth')->except(['apiIndex', 'apiRoutes']);
     }
 

@@ -121,6 +121,7 @@ class Php82CompatibilityTest extends TestCase
             'lat' => '-19.5892639',
             'lng' => '-65.7536236',
             'conclusions' => 'Observacion de prueba',
+            'location_source' => 'MANUAL', 'location_reason' => 'Ubicación confirmada en campo', 'location_confirmed' => 1,
         ])->assertSessionHasNoErrors()
             ->assertRedirect(route('certificate.show', 1));
 
@@ -224,7 +225,7 @@ class Php82CompatibilityTest extends TestCase
         ]);
     }
 
-    public function test_notice_deadlines_retain_whole_absolute_days_after_carbon_upgrade(): void
+    public function test_legacy_notices_do_not_infer_a_third_notice_deadline(): void
     {
         Schema::create('notices', function (Blueprint $table) {
             $table->id();
@@ -271,8 +272,8 @@ class Php82CompatibilityTest extends TestCase
 
             foreach ($rows as $row) {
                 $columns = $row->getElementsByTagName('td');
-                $number = trim($columns->item(0)->textContent);
-                $this->assertSame($cases[$number][1], trim($columns->item(4)->textContent), $number);
+                $number = explode(' / ', trim($columns->item(0)->textContent))[0];
+                $this->assertSame('Histórico sin secuencia verificada', trim($columns->item(4)->textContent), $number);
             }
         } finally {
             Carbon::setTestNow();
@@ -338,16 +339,8 @@ class Php82CompatibilityTest extends TestCase
             'updated_at' => '2024-03-15 10:30:00',
         ]);
         $this->actingAs($this->webUser('ADMIN'));
-        $realPdf = PDF::getFacadeRoot();
-        $proxy = Mockery::mock($realPdf);
-        // Keep TCPDF rendering real; replace only the external Mapbox image dependency.
-        $proxy->shouldReceive('Image')->once()->andReturnUsing(function (...$arguments) use ($realPdf) {
-            $this->assertStringStartsWith('https://api.mapbox.com/', $arguments[0]);
-            $arguments[0] = public_path('img/potosi.png');
-
-            return $realPdf->Image(...$arguments);
-        });
-        PDF::swap($proxy);
+        config(['services.mapbox.token'=>'token-ficticio-de-prueba']);
+        \Illuminate\Support\Facades\Http::fake(['api.mapbox.com/*' => \Illuminate\Support\Facades\Http::response(file_get_contents(public_path('img/potosi.png')), 200, ['Content-Type'=>'image/png'])]);
         $this->withoutExceptionHandling();
 
         ob_start();
@@ -356,7 +349,6 @@ class Php82CompatibilityTest extends TestCase
             $pdf = ob_get_contents();
         } finally {
             ob_end_clean();
-            PDF::swap($realPdf);
         }
 
         $response->assertOk();
@@ -418,17 +410,24 @@ class Php82CompatibilityTest extends TestCase
             foreach ([
                 'tipo', 'modalidad', 'solicitante', 'ci', 'celular', 'rubro',
                 'direccion', 'tipo_via', 'ref_product', 'ref_turn', 'ref_start',
-                'ref_end', 'color', 'material', 'conclusions', 'inspection_date', 'code',
+                'ref_end', 'color', 'material', 'conclusions', 'inspection_date', 'code', 'location_source', 'location_reason',
             ] as $column) {
                 $table->string($column)->nullable();
             }
-            foreach (['dim_ancho', 'dim_largo', 'dim_via', 'dim_perc_ocupado', 'lat', 'lng'] as $column) {
+            foreach (['dim_ancho', 'dim_largo', 'dim_via', 'dim_perc_ocupado', 'lat', 'lng', 'accuracy'] as $column) {
                 $table->double($column)->nullable();
             }
+            $table->timestamp('located_at')->nullable();
             $table->boolean('technical_proceed')->nullable();
             $table->boolean('legal_proceed')->nullable();
             $table->timestamps();
         });
+        Schema::create('certificate_revisions', function (Blueprint $table) {
+            $table->id(); $table->foreignId('certificate_id'); $table->unsignedInteger('revision');
+            $table->json('snapshot'); $table->string('actor_type',80)->nullable(); $table->unsignedBigInteger('actor_id')->nullable();
+            $table->text('reason'); $table->timestamp('created_at'); $table->unique(['certificate_id','revision']);
+        });
+
     }
 
     private function createInspectorAndTokenTable(bool $includeExpiry): Inspector

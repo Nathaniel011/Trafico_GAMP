@@ -10,11 +10,12 @@
         </div>
         <form action="{{route('certificate.store')}}" method="POST" class="form-horizontal">
             {{csrf_field()}}
+            <input type="hidden" name="caseta_id" value="{{ old('caseta_id', $model->caseta_id) }}">
         <div class="card-body">
             <div class="row justify-content-center">
                 <div class="col-8">
                     <div class="form-group row">
-                        <label class="col-sm-2 col-form-label">Fecha inspeccción</label>
+                        <label class="col-sm-2 col-form-label">Fecha de inspección</label>
                         <div class="col-sm-4">
                             <div class="input-group date" id="datetimepicker1" data-target-input="nearest">
                                 <input type="text" class="form-control datetimepicker-input" value="{{old('inspection_date')}}" data-target="#datetimepicker1" name="inspection_date"/>
@@ -295,10 +296,7 @@
                     <h5>Croquis de ubicación</h5>
 
                     <div class="form-group row">
-                        <input type="hidden" value="0" name="lat" id="lat">
-                        <input type="hidden" value="0" name="lng" id="lng">
-                        <div class="col-sm-12">
-                            <div id="map" style="height: 400px;"></div>
+                        <div class="col-sm-12">@include('casetas.location', ['location' => $model])
                         </div>
                     </div>
 
@@ -381,10 +379,7 @@
     <script src="{{asset('plugins/icheck-bootstrap/icheck.js')}}"></script>
     <script src="{{asset('plugins/moment/moment.min.js')}}"></script>
     <script src="{{asset('plugins/bootstrap-datetimepicker/js/tempusdominus-bootstrap-4.min.js')}}"></script>
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWfhkbkuAlTm08GKlCAUcINKqXUSTdzqE&callback=initMap&v=weekly"
-        async
-    ></script>
+
     <script>
         $(document).ready(function(){
             $("#table-tipos tbody tr").on("click", function (e){
@@ -485,59 +480,5 @@
             }
         }
 
-        let initialPosition = {
-            lat: {{old('lat', $model->lat)}}, lng: {{old('lng', $model->lng)}}
-        };
-
-        function initMap() {
-            $("#lat").val(initialPosition.lat);
-            $("#lng").val(initialPosition.lng);
-
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: initialPosition,
-                zoom: 17.75,
-                styles: [
-                    {
-                        featureType: "poi",
-                        stylers: [
-                            { visibility: "off" }
-                        ]
-                    }
-                ]
-            });
-
-
-
-            let marker = new google.maps.Marker({
-                position: initialPosition,
-                map,
-                title: 'Ubicación'
-            });
-
-            const circle = new google.maps.Circle({
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: "#FF0000",
-                fillOpacity: 0.35,
-                map,
-                center: initialPosition,
-                radius: 25,
-            });
-
-            map.addListener("click", (e) => {
-                marker.setPosition({
-                    lat: e.latLng.lat(),
-                    lng: e.latLng.lng()
-                });
-                circle.setCenter({
-                    lat: e.latLng.lat(),
-                    lng: e.latLng.lng()
-                });
-                $("#lat").val(e.latLng.lat());
-                $("#lng").val(e.latLng.lng());
-            });
-        }
     </script>
 @endpush
-

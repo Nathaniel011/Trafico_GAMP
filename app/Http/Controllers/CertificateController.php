@@ -13,11 +13,12 @@ class CertificateController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('can:field-work')->only(['create', 'store']);
         $this->middleware('can:edit-certificates')->only(['edit', 'update']);
     }
 
     public function index(){
-        $certificates = Certificate::all();
+        $certificates = collect();
 
         return view('certificate.index', [
             'certificates' => $certificates
@@ -25,19 +26,15 @@ class CertificateController extends Controller
     }
 
     public function shops(){
-        $certificates = Certificate::all();
-
-        return view('certificate.shops', [
-            'shops' => $certificates
-        ]);
+        return redirect()->route('casetas.map');
     }
 
     public function data(){
-        return DataTables::of(Certificate::all())
+        return DataTables::of(Certificate::query())
             ->addColumn('actions', function ($cert) {
                 $editRoute = route('certificate.edit', $cert->id);
                 $btnEdit = '';
-                if(str_contains((string) auth()->user()->roles, 'ADMIN')){
+                if(auth()->user()->can('edit-certificates')){
                     $btnEdit = "<a href='$editRoute' class='btn btn-xs btn-primary'><i class='fa fa-edit'></i> Editar</a>";
                 }
                 $showRoute = route('certificate.show', $cert->id);
@@ -52,15 +49,23 @@ class CertificateController extends Controller
             ->make(true);
     }
 
-    public function create(){
+    public function create(Request $request){
         $model = new Certificate();
 
 //        $default_reference = Reference::where('types', 'OTRO')->first();
 //        if($default_reference){
 //            $model->reference_id = $default_reference->id;
 //        }
-        $model->lat = -19.5892639;
-        $model->lng = -65.7536236;
+        if ($request->filled('caseta_id')) {
+            $caseta = \App\Models\Caseta::findOrFail($request->caseta_id);
+            $model->caseta_id = $caseta->id;
+            $model->solicitante = $caseta->owner;
+            $model->ci = $caseta->document;
+            $model->celular = $caseta->phone;
+            $model->direccion = $caseta->address;
+            $model->lat = $caseta->lat;
+            $model->lng = $caseta->lng;
+        }
 
         return view('certificate.create', [
             'model' => $model
@@ -74,7 +79,7 @@ class CertificateController extends Controller
             'mode' => 'required',
             'another_type' => 'required_if:type,OTROS',
             'solicitante' => 'required',
-            'ci' => 'required|unique:certificates,ci',//TODO: unique solo si es nuevo o regularizacion
+            'ci' => 'required|string|max:80',//TODO: unique solo si es nuevo o regularizacion
             'celular' => 'nullable',
             'rubro' => 'required',
             'direccion' => 'required',
@@ -90,6 +95,11 @@ class CertificateController extends Controller
             'color' => 'required',
             'material' => 'required',
             //'conclusions' => 'required',
+            'technical_proceed' => 'required|boolean',
+            'legal_proceed' => 'required|boolean',
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'caseta_id' => 'nullable|integer|exists:casetas,id',
             'inspection_date' => 'required|date_format:d/m/Y'
         ], [
             'required' => 'Requerido',
@@ -134,21 +144,31 @@ class CertificateController extends Controller
             $type = $model->modalidad;
         }
         $text = "REALIZADA LA INSPECCIÓN DE LA CASETA DEL(DE LA) SR(A). $name, CI: $document, EN CUANTO A SUS DIMENSIONES SE ENCUENTRA DENTRO DE LO DETERMINADO SEGÚN DECRETO EDIL N° 014/2015 Y SU MODIFICATORIO, EN CONSECUENCIA, BAJO ESTOS ANTECEDENTES SEÑALADOS, ES VIABLE LA PROSECUCIÓN DEL TRAMITE PARA LA $type DE LICENCIA DE FUNCIONAMIENTO, ADEMAS QUE LA UBICACIÓN DE LA CASETA SE ENCUENTRA EN UN LUGAR ACCESIBLE QUE NO PERJUDICA EL TRABAJO PEATONAL NI VEHICULAR.";
-        $text = $text."\n\n".$request->conclusions;
-        if($request->technical_proceed===0){
+        $text = str_starts_with((string) $request->conclusions, 'REALIZADA LA INSPECCIÓN') ? $request->conclusions : $text."\n\n".$request->conclusions;
+        if(!$request->boolean('technical_proceed')){
             $text = $request->conclusions;
         }
         $model->conclusions = $text;
 
-        $model->technical_proceed = $request->technical_proceed;
-        $model->legal_proceed = $request->legal_proceed;
+        $model->technical_proceed = $request->boolean('technical_proceed');
+        $model->legal_proceed = $request->boolean('legal_proceed');
         $model->color= strtoupper($request->color);
         $model->material = strtoupper($request->material);
         $model->lng = $request->lng;
         $model->lat = $request->lat;
         $i_date = Carbon::createFromFormat('d/m/Y', $request->inspection_date);
         $model->inspection_date = $i_date->format('Y-m-d');
-        $model->save();
+        if (!$model->exists && $request->filled('caseta_id')) { $model->caseta_id = $request->caseta_id; }
+        {
+            $request->validate(\App\Services\LocationRules::rules(true));
+            $original = $model->exists ? Certificate::findOrFail($model->id) : ($model->caseta_id ? \App\Models\Caseta::findOrFail($model->caseta_id) : null);
+            \App\Services\LocationRules::verifyExisting($request, $original);
+            $model->location_source = $request->location_source;
+            $model->accuracy = $request->location_source === 'EXISTING' ? $original->accuracy : ($request->location_source === 'GPS' ? $request->accuracy : null);
+            $model->located_at = $request->location_source === 'EXISTING' ? $original->located_at : ($request->location_source === 'GPS' ? Carbon::parse($request->located_at)->utc() : now('UTC'));
+            $model->location_reason = $request->location_source === 'EXISTING' ? $original->location_reason : $request->location_reason;
+        }
+        \App\Services\CertificateHistory::save($model, $request->certificate_version, $request->revision_reason);
         return redirect()->route('certificate.show', $model->id);
     }
 
@@ -161,13 +181,14 @@ class CertificateController extends Controller
     }
 
     public function update(Request $request, $id){
+        $request->validate(['certificate_version' => 'required|string|size:64', 'revision_reason' => (config('features.caseta_dossier') ? 'required' : 'nullable').'|string|max:2000']);
 
         $request->validate([
             'type' => 'required',
             'mode' => 'required',
             'another_type' => 'required_if:type,OTROS',
             'solicitante' => 'required',
-            'ci' => 'required|unique:certificates,ci,'.$id,
+            'ci' => 'required|string|max:80',
             'celular' => 'nullable',
             'rubro' => 'required',
             'direccion' => 'required',
@@ -183,8 +204,12 @@ class CertificateController extends Controller
             'color' => 'required',
             'material' => 'required',
             //'conclusions' => 'required',
-            'lng' => 'required|numeric',
-            'lng' => 'required|numeric',
+
+            'technical_proceed' => 'required|boolean',
+            'legal_proceed' => 'required|boolean',
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'caseta_id' => 'nullable|integer|exists:casetas,id',
             'inspection_date' => 'required|date_format:d/m/Y'
         ], [
             'required' => 'Requerido',
@@ -228,22 +253,39 @@ class CertificateController extends Controller
             $type = $model->modalidad;
         }
         $text = "REALIZADA LA INSPECCIÓN DE LA CASETA DEL(DE LA) SR(A). $name, CI: $document, EN CUANTO A SUS DIMENSIONES SE ENCUENTRA DENTRO DE LO DETERMINADO SEGÚN DECRETO EDIL N° 014/2015 Y SU MODIFICATORIO, EN CONSECUENCIA, BAJO ESTOS ANTECEDENTES SEÑALADOS, ES VIABLE LA PROSECUCIÓN DEL TRAMITE PARA LA $type DE LICENCIA DE FUNCIONAMIENTO, ADEMAS QUE LA UBICACIÓN DE LA CASETA SE ENCUENTRA EN UN LUGAR ACCESIBLE QUE NO PERJUDICA EL TRABAJO PEATONAL NI VEHICULAR.";
-        $text = $text."\n\n".$request->conclusions;
-        if($request->technical_proceed===0){
+        $text = str_starts_with((string) $request->conclusions, 'REALIZADA LA INSPECCIÓN') ? $request->conclusions : $text."\n\n".$request->conclusions;
+        if(!$request->boolean('technical_proceed')){
             $text = $request->conclusions;
         }
         $model->conclusions = $text;
 
-        $model->technical_proceed = $request->technical_proceed;
-        $model->legal_proceed = $request->legal_proceed;
+        $model->technical_proceed = $request->boolean('technical_proceed');
+        $model->legal_proceed = $request->boolean('legal_proceed');
         $model->color= strtoupper($request->color);
         $model->material = strtoupper($request->material);
         $model->lng = $request->lng;
         $model->lat = $request->lat;
         $i_date = Carbon::createFromFormat('d/m/Y', $request->inspection_date);
         $model->inspection_date = $i_date->format('Y-m-d');
-        $model->save();
+        if (!$model->exists && $request->filled('caseta_id')) { $model->caseta_id = $request->caseta_id; }
+        {
+            $request->validate(\App\Services\LocationRules::rules(true));
+            $original = $model->exists ? Certificate::findOrFail($model->id) : ($model->caseta_id ? \App\Models\Caseta::findOrFail($model->caseta_id) : null);
+            \App\Services\LocationRules::verifyExisting($request, $original);
+            $model->location_source = $request->location_source;
+            $model->accuracy = $request->location_source === 'EXISTING' ? $original->accuracy : ($request->location_source === 'GPS' ? $request->accuracy : null);
+            $model->located_at = $request->location_source === 'EXISTING' ? $original->located_at : ($request->location_source === 'GPS' ? Carbon::parse($request->located_at)->utc() : now('UTC'));
+            $model->location_reason = $request->location_source === 'EXISTING' ? $original->location_reason : $request->location_reason;
+        }
+        \App\Services\CertificateHistory::save($model, $request->certificate_version, $request->revision_reason);
         return redirect()->route('certificate.show', $model->id);
+    }
+
+    public function history($id)
+    {
+        $model = Certificate::findOrFail($id);
+        $revisions = $model->revisions()->paginate(20);
+        return view('certificate.history', compact('model', 'revisions'));
     }
 
     public function show($id){
@@ -393,17 +435,16 @@ class CertificateController extends Controller
         PDF::Cell(15, 0, '');PDF::Cell(60, 5, 'HORARIO', 0, 0, '', null, 0, 1);
         PDF::Cell(2, 0);
         PDF::Cell(10, 5, 'De', 0, 0, 'C', 0);
-        $start = Carbon::createFromFormat('H:i:s', $model->ref_start);
+        $start = Carbon::parse($model->ref_start);
         PDF::Cell(40, 5, $start->format('H:i'), 0, 0, 'C', 1);
 
         PDF::Cell(10, 5, 'A', 0, 0, 'C', 0);
-        $end = Carbon::createFromFormat('H:i:s', $model->ref_end);
+        $end = Carbon::parse($model->ref_end);
         PDF::Cell(40, 5, $end->format('H:i'), 0, 1, 'C', 1);
         PDF::Ln();
         PDF::SetFont('times', 'B', 12);
         //PDF::Cell(60, 0,'CROQUIS DE UBICACION', 0, 1);
         //style=feature:poi|visibility:off
-        //$url = "https://maps.googleapis.com/maps/api/staticmap?zoom=17&size=600x300&center={$model->lat},{$model->lng}&markers=color:green|{$model->lat},{$model->lng}&key=AIzaSyCYChzOSw1AE2xAbWVCOmwAzy4UeG_XTUw";
 
         //$margin =
         //    PDF::Image($url, '', '', 100, 50);
@@ -428,7 +469,19 @@ class CertificateController extends Controller
         $lng = $model->lng;
         $mapboxToken = rawurlencode((string) config('services.mapbox.token', ''));
         $url = "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-l+000($lng,$lat)/$lng,$lat,16/280x220?access_token={$mapboxToken}";
-        PDF::Image($url, 55, '', 0, 0, '', null, '', false, 300);
+        $mapImage = null;
+        if ($mapboxToken !== '') {
+            try {
+                $response = \Illuminate\Support\Facades\Http::connectTimeout(3)->timeout(8)->get($url);
+                if ($response->successful() && strlen($response->body()) <= 2097152 && @getimagesizefromstring($response->body())) {
+                    $mapImage = $response->body();
+                }
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                // The certificate remains printable if the optional map provider is unavailable.
+            }
+        }
+        if ($mapImage !== null) { PDF::Image('@'.$mapImage, 55, '', 0, 0, '', null, '', false, 300); }
+        else { PDF::MultiCell(0, 10, "Mapa estático no disponible. Ubicación registrada: $lat, $lng. Consulte el mapa interactivo en la plataforma.", 1, 'C'); }
         PDF::Cell(0, 80, '', 0, 1);
         PDF::SetFont('times', 'B', 12);
         PDF::Cell(80, 0,'DETERMINACIÓN INFORME LEGAL', 0, 1, '', 0, null, 1);
@@ -587,4 +640,3 @@ class CertificateController extends Controller
         PDF::Output('NotificacionVias.pdf');
     }
 }
-

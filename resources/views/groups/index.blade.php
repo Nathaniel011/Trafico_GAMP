@@ -14,7 +14,7 @@
             </div>
         </div>
         <div class="card-body">
-            <table class="table" id="main-table">
+            <div class="table-responsive"><table class="table" id="main-table">
                 <thead>
                 <tr>
                     <th></th><!--IMAGEN-->
@@ -42,14 +42,14 @@
                                 <i class="fa fa-eye"></i> Mostrar
                             </a>
 
-                            <a href="{{route('groups.edit', $model->id)}}" class="btn btn-xs btn-primary">
+                            @can('manage-system')<a href="{{route('groups.edit', $model->id)}}" class="btn btn-xs btn-primary">
                                 <i class="fa fa-edit"></i> Editar
-                            </a>
+                            </a>@endcan
                         </td>
                     </tr>
                 @endforeach
                 </tbody>
-            </table>
+            </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
@@ -66,7 +66,7 @@
 @endpush
 
 @push('scripts')
-    <script src="{{asset('plugins/jQuery-3.6.0/jquery-3.6.0.min.js')}}"></script>
+
     <script src="{{asset('plugins/DataTables-1.11.3/js/jquery.dataTables.min.js')}}"></script>
     <script>
         $(function() {

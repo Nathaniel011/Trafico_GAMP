@@ -13,3 +13,23 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+
+# Local configuration and generated files
+.env.*
+!.env.example
+/.phpunit.cache/
+/coverage/
+/.vscode/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store
+Thumbs.db
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/auth.json

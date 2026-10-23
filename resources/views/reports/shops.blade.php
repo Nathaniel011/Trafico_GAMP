@@ -11,7 +11,7 @@
             </div>
         </div>
         <div class="card-body">
-            <table class="table table-hover table-dense" >
+            <div class="table-responsive"><table class="table table-hover table-dense" >
                 <thead>
                 <tr>
                     <th>#</th>
@@ -43,7 +43,7 @@
                     </tr>
                 @endforeach
                 </tbody>
-            </table>
+            </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
@@ -60,7 +60,7 @@
 @endpush
 
 @push('scripts')
-    <script src="{{asset('plugins/jQuery-3.6.0/jquery-3.6.0.min.js')}}"></script>
+
     <script src="{{asset('plugins/DataTables-1.11.3/js/jquery.dataTables.min.js')}}"></script>
     <script>
         $(function() {

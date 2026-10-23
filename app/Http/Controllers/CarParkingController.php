@@ -10,8 +10,8 @@ use Yajra\DataTables\DataTables;
 
 class CarParkingController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:field-work')->only(['create', 'store', 'edit', 'update', 'setState']);
         $this->middleware('auth');
     }
 
@@ -24,8 +24,9 @@ class CarParkingController extends Controller
     }
 
     public function data(){
-        return DataTables::of(carparking::all())
+        return DataTables::of(CarParking::query())
             ->addColumn('actions', function ($car) {
+                if (!auth()->user()->can('field-work')) { return ''; }
                 $editRoute = route('carparking.edit', $car->id);
                 return "<a href='$editRoute' class='btn btn-xs btn-primary'><i class='fa fa-edit'></i> Editar</a>";
             })
@@ -40,8 +41,7 @@ class CarParkingController extends Controller
     public function create(){
         $model = new CarParking();
 
-        $model->lat = -19.5892639;
-        $model->lng = -65.7536236;
+
 
         return view('carparking.create', [
             'model' => $model
@@ -49,26 +49,8 @@ class CarParkingController extends Controller
     }
 
     public function store(Request $request){
-
-        $request->validate([
-            'name' => 'required',
-            'description' => 'required',
-            'zone' => 'required',
-            'quantity' => 'numeric',
-            'free' => 'numeric',
-        ], [
-            'required' => 'Requerido',
-            'numeric' => 'Numérico',
-        ]);
-
         $model = new CarParking();
-        $model->name = $request->name;
-        $model->description = $request->description;
-        $model->zone = $request->zone;
-        $model->quantity = $request->quantity;
-        $model->free = $request->free;
-        $model->lng = $request->lng;
-        $model->lat = $request->lat;
+        \App\Services\ParkingLocation::apply($request, $model);
         $model->save();
         return redirect()->route('carparking.index');
     }
@@ -82,22 +64,8 @@ class CarParkingController extends Controller
     }
 
     public function update(Request $request, $id){
-
-        $request->validate([
-            'name' => 'required',
-            'description' => 'required',
-        ], [
-            'required' => 'Requerido',
-        ]);
-
         $model = CarParking::findOrFail($id);
-        $model->name = $request->name;
-        $model->description = $request->description;
-        $model->zone = $request->zone;
-        $model->quantity = $request->quantity;
-        $model->free = $request->free;
-        $model->lng = $request->lng;
-        $model->lat = $request->lat;
+        \App\Services\ParkingLocation::apply($request, $model);
         $model->save();
         return redirect()->route('carparking.index');
     }

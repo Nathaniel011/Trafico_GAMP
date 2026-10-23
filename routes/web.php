@@ -109,7 +109,33 @@ Route::group(['prefix'=>'notices'], function(){
     Route::post('create', 'NoticeController@store')->name('notices.store');
     Route::post('{id}/edit', 'NoticeController@update')->name('notices.update');
     Route::get('{id}', 'NoticeController@show')->name('notices.show');
-    Route::post('{id}', 'NoticeController@delete')->name('notices.delete');
+
 });
 
-Route::post('upload', 'FileController@upload')->middleware('auth')->name('upload');
+Route::post('upload', 'FileController@upload')->middleware(['auth', 'can:field-work'])->name('upload');
+Route::get('casetas', 'CasetaController@index')->name('casetas.index');
+Route::get('casetas/mapa', 'CasetaController@map')->name('casetas.map');
+Route::get('casetas/puntos', 'CasetaController@points')->name('casetas.points');
+Route::get('casetas/nueva', 'CasetaController@create')->name('casetas.create');
+Route::post('casetas', 'CasetaController@store')->name('casetas.store');
+Route::get('casetas/{caseta}/editar', 'CasetaController@edit')->name('casetas.edit');
+Route::post('casetas/{caseta}/editar', 'CasetaController@update')->name('casetas.update');
+Route::post('casetas/{caseta}/licencias', 'CasetaController@license')->name('casetas.license');
+Route::post('casetas/{caseta}/procedimientos/{case}/cerrar', 'CasetaController@closeCase')->name('casetas.case.close');
+Route::post('casetas/{caseta}/vincular-certificado', 'CasetaController@linkCertificate')->middleware(\App\Http\Middleware\RequireFeature::class.':caseta_dossier')->name('casetas.link.certificate');
+Route::post('casetas/{caseta}/vincular-aviso', 'CasetaController@linkNotice')->middleware(\App\Http\Middleware\RequireFeature::class.':caseta_dossier')->name('casetas.link.notice');
+Route::get('casetas/documentos-historicos', 'CasetaLegacyController@index')->middleware(\App\Http\Middleware\RequireFeature::class.':caseta_dossier')->name('casetas.legacy');
+Route::post('casetas/documentos-historicos/vincular', 'CasetaLegacyController@link')->middleware(\App\Http\Middleware\RequireFeature::class.':caseta_dossier')->name('casetas.legacy.link');
+Route::get('casetas/{caseta}', 'CasetaController@show')->name('casetas.show');
+Route::post('notice-photos', 'NoticePhotoController@store')->middleware('throttle:30,1')->name('notice-photos.store');
+Route::get('notice-photos/temporary/{photo}', 'NoticePhotoController@preview')->name('notice-photos.preview');
+Route::get('notice-photos/{photo}', 'NoticePhotoController@show')->name('notice-photos.show');
+Route::get('perfiles', 'UserAccessController@index')->name('user-access.index');
+Route::post('perfiles/{user}', 'UserAccessController@update')->name('user-access.update');
+
+Route::get('certificate/history/{id}', 'CertificateController@history')->middleware(\App\Http\Middleware\RequireFeature::class.':caseta_dossier')->name('certificate.history');
+Route::get('recaudaciones', 'RecaudacionesController@index')->middleware(\App\Http\Middleware\RequireFeature::class.':recaudaciones')->name('recaudaciones.index');
+Route::get('recaudaciones/plantilla', 'RecaudacionesController@template')->middleware(\App\Http\Middleware\RequireFeature::class.':recaudaciones')->name('recaudaciones.template');
+Route::post('recaudaciones/revisar', 'RecaudacionesController@preview')->middleware(\App\Http\Middleware\RequireFeature::class.':recaudaciones')->name('recaudaciones.preview');
+Route::post('recaudaciones/importar', 'RecaudacionesController@import')->middleware(\App\Http\Middleware\RequireFeature::class.':recaudaciones')->name('recaudaciones.import');
+Route::post('casetas/{caseta}/licencias/{license}/verificar-pago', 'RecaudacionesController@store')->middleware(\App\Http\Middleware\RequireFeature::class.':recaudaciones')->name('recaudaciones.store');

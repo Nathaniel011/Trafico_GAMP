@@ -1,295 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Trafico y vialidad</title>
-
-    <!-- Google Font: Source Sans Pro -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="{{URL::asset('plugins/fontawesome-free/css/all.min.css')}}">
-    <!-- Theme style -->
-    <link rel="stylesheet" href="{{URL::asset('css/adminlte.min.css')}}">
-    <link rel="stylesheet" href="{{URL::asset('css/custom.css')}}">
-
+    <title>Tráfico y Vialidad · G.A.M. de Potosí</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="shortcut icon" type="image/x-icon" href="{{asset('img/favicon.ico')}}">
-
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('img/favicon.ico') }}">
+    <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/adminlte.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/custom.css') }}">
+    @vite('resources/js/institutional.js')
     @stack('styles')
 </head>
-<body class="hold-transition sidebar-mini">
-<!-- Site wrapper -->
+<body class="hold-transition sidebar-mini layout-fixed gamp-ui institutional-admin">
+@php($accessLabel = auth()->user()->can('manage-system') ? 'Administración' : (auth()->user()->can('field-work') ? 'Inspección y notificación' : 'Consulta'))
+<a href="#contenido" class="skip-link">Saltar al contenido</a>
 <div class="wrapper">
-    <!-- Navbar -->
-    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-        <!-- Left navbar links -->
-        <ul class="navbar-nav">
-            <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
-            </li>
-        </ul>
-
-        <!-- Right navbar links -->
-        <ul class="navbar-nav ml-auto">
-            <form action="/logout" method="POST">
-                @csrf
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-sign-out-alt"></i> Salir
-                </button>
-            </form>
-
-            {{--            <li class="nav-item">--}}
-{{--                <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">--}}
-{{--                    <i class="fas fa-th-large"></i>--}}
-{{--                </a>--}}
-{{--            </li>--}}
-        </ul>
-    </nav>
-    <!-- /.navbar -->
-
-    <!-- Main Sidebar Container -->
-    <aside class="main-sidebar sidebar-dark-primary elevation-4">
-        <!-- Brand Logo -->
-        <a href="#" class="brand-link">
-
-            <span class="brand-text font-weight-light">Trafico y vialidad</span>
-        </a>
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- Sidebar user (optional) -->
-            <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-                <div class="image">
-                    <img src="{{URL::asset('img/avatar.jpg')}}" class="img-circle elevation-2" alt="User Image">
-                </div>
-                <div class="info">
-                    <a href="#" class="d-block">{{auth()->user()->name}}</a>
-                </div>
-            </div>
-
-            <!-- SidebarSearch Form -->
-            <div class="form-inline">
-                <div class="input-group" data-widget="sidebar-search">
-                    <input class="form-control form-control-sidebar" type="search" placeholder="Buscar..." aria-label="Search">
-                    <div class="input-group-append">
-                        <button class="btn btn-sidebar">
-                            <i class="fas fa-search fa-fw"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sidebar Menu -->
-            <nav class="mt-2">
-                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                    <!-- Add icons to the links using the .nav-icon class
-                         with font-awesome or any other icon font library -->
-                    <li class="nav-item">
-                        <a href="{{route('home.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-home"></i>
-                            <p>
-                                Inicio
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('certificate.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-file-invoice-dollar"></i>
-                            <p>
-                                Certificaciones
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="#" class="nav-link ">
-                            <i class="nav-icon fas fa-file-invoice"></i>
-                            <p>
-                                Notificaciones
-                                <i class="nav-arrow bi bi-chevron-right"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{route('notices.index', ['mode'=>'SHOPS'])}}" class="nav-link">
-                                    <i class="nav-icon fa fa-circle"></i>
-                                    <p>Casetas</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{route('notices.index', ['mode'=>'WAYS'])}}" class="nav-link">
-                                    <i class="nav-icon fa fa-circle"></i>
-                                    <p>Ocupacion de vias</p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('shops')}}" class="nav-link">
-                            <i class="nav-icon fas fa-store"></i>
-                            <p>
-                                Casetas
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('carparking.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-car-side"></i>
-                            <p>
-                                Parqueo de Vehiculos
-                            </p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{route('motoparking.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-motorcycle"></i>
-                            <p>
-                                Parqueo de Motos
-                            </p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-directions"></i>
-                            <p>
-                                Zona de Restricción
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('complaints.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-exclamation-circle"></i>
-                            <p>
-                                Denuncias
-                                @php
-                                $counter = \App\Models\Complaint::where("state", "PENDIENTE")->count();
-                                @endphp
-                                @if($counter>0)
-                                    <span class="badge badge-primary right">{{$counter}}</span>
-                                @endif
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('notifications.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-bell"></i>
-                            <p>
-                                Avisos
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('groups.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-users"></i>
-                            <p>
-                                Sindicatos / Cooperativas
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{route('inspectors.index')}}" class="nav-link">
-                            <i class="nav-icon fas fa-user-lock"></i>
-                            <p>
-                                Inspectores
-                            </p>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-chart-pie"></i>
-                            <p>
-                                Reportes
-                                <i class="nav-arrow bi bi-chevron-right"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{route('reports.shops')}}" class="nav-link">
-                                    <i class="nav-icon fa fa-circle"></i>
-                                    <p>Casetas</p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-            </nav>
-            <!-- /.sidebar-menu -->
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light" aria-label="Barra de sesión">
+        <button class="nav-link" type="button" data-widget="pushmenu" aria-label="Abrir o cerrar menú principal" aria-controls="institutional-sidebar" aria-expanded="false"><i class="fas fa-bars" aria-hidden="true"></i></button>
+        <div class="topbar-institution">
+            <strong>Gobierno Autónomo Municipal de Potosí</strong>
+            <span>Jefatura de Tráfico y Vialidad</span>
         </div>
-        <!-- /.sidebar -->
-    </aside>
-
-    <!-- Content Wrapper. Contains page content -->
+        <div class="topbar-actions">
+            <span class="access-label">{{ $accessLabel }}</span>
+            <form action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button type="submit" class="btn session-exit"><i class="fas fa-sign-out-alt mr-1" aria-hidden="true"></i> Salir</button>
+            </form>
+        </div>
+    </nav>
+    @include('layouts.partials.sidebar')
     <div class="content-wrapper">
-        <!-- Content Header (Page header) -->
-        <section class="content-header">
-            <div class="container-fluid">
-                <div class="row mb-2">
-                    <div class="col-sm-6">
-                        @yield('header')
-                    </div>
-{{--                    <div class="col-sm-6">--}}
-{{--                        <h1>Blank Page</h1>--}}
-{{--                    </div>--}}
-{{--                    <div class="col-sm-6">--}}
-{{--                        <ol class="breadcrumb float-sm-right">--}}
-{{--                            <li class="breadcrumb-item"><a href="#">Home</a></li>--}}
-{{--                            <li class="breadcrumb-item active">Blank Page</li>--}}
-{{--                        </ol>--}}
-{{--                    </div>--}}
-                </div>
-            </div><!-- /.container-fluid -->
+        <section class="content-header" aria-label="Título de la página">
+            <div class="container-fluid"><div class="row mb-1"><div class="col-12">@yield('header')</div></div></div>
         </section>
-
-        <!-- Main content -->
-        <section class="content">
+        <main class="content" id="contenido" tabindex="-1">
+            @if(session('success'))<div class="alert alert-success" role="status">{{ session('success') }}</div>@endif
+            @if($errors->any())<div class="alert alert-danger" role="alert"><strong>Revise los datos:</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             @yield('content')
-        </section>
-        <!-- /.content -->
+        </main>
     </div>
-    <!-- /.content-wrapper -->
-
     <footer class="main-footer">
-
+        <span>Gobierno Autónomo Municipal de Potosí</span>
+        <span>Tráfico y Vialidad · Gestión municipal</span>
     </footer>
-
-    <!-- Control Sidebar -->
-    <aside class="control-sidebar control-sidebar-dark">
-        <!-- Control sidebar content goes here -->
-    </aside>
-    <!-- /.control-sidebar -->
 </div>
-<!-- ./wrapper -->
-
-<!-- jQuery -->
-<script src="{{URL::asset('plugins/jquery/jquery.min.js')}}"></script>
-<!-- Bootstrap 4 -->
-<script src="{{URL::asset('plugins/bootstrap/js/bootstrap.bundle.min.js')}}"></script>
-<!-- AdminLTE App -->
-<script src="{{URL::asset('js/adminlte.min.js')}}"></script>
+<script src="{{ asset('plugins/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('js/adminlte.min.js') }}"></script>
 <script>
-    $(function(){
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            }
-        });
-
-        $("input:not(.lower), textarea:not(.lower)").on("input", function(){
-            var $input = $(this);
-            $input.val($input.val().toUpperCase());
-        });
-    });
+    $(function () { $.ajaxSetup({headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')}}); });
 </script>
 @stack('scripts')
 </body>
 </html>
-

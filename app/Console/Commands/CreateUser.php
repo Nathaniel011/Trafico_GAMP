@@ -13,7 +13,7 @@ class CreateUser extends Command
      *
      * @var string
      */
-    protected $signature = 'create:user';
+    protected $signature = 'create:user {--role= : ADMIN, JEFE_UNIDAD, INSPECTOR_NOTIFICADOR o ASESOR_LEGAL}';
 
     /**
      * The console command description.
@@ -39,11 +39,17 @@ class CreateUser extends Command
      */
     public function handle()
     {
+        $role = $this->option('role') ?: $this->choice('Perfil', ['ASESOR_LEGAL', 'INSPECTOR_NOTIFICADOR', 'JEFE_UNIDAD', 'ADMIN'], 0);
+        if (!in_array($role, ['ADMIN', 'JEFE_UNIDAD', 'INSPECTOR_NOTIFICADOR', 'ASESOR_LEGAL'], true)) {
+            $this->error('Perfil no válido.');
+            return self::FAILURE;
+        }
         $name = $this->ask('Nombre:');
         $username = $this->ask('Usuario:');
         $password = $this->secret('Password:');
         try{
             DB::table('users')->insert([
+                'roles' => $role,
                 'name' => $name,
                 'username' => $username,
                 'password' => Hash::make($password),

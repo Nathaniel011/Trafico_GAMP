@@ -10,6 +10,7 @@
         </div>
         <div class="card-body">
             <div class="text-right">
+                @if(config('features.caseta_dossier'))<a href="{{ route('certificate.history', $model) }}" class="btn btn-outline-primary">Historial de versiones</a>@endif
                 <a href="{{route('certificate.showmap',$model->id)}}" class="btn btn-primary">
                     <i class="fa fa-map-marker"></i>
                     Ubicación en mapa

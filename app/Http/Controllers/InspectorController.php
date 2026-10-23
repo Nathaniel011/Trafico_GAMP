@@ -11,8 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class InspectorController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:manage-system')->only(['create', 'store', 'edit', 'update', 'delete']);
         $this->middleware('auth')->except(['apiLogin', 'apiProfile', 'apiLogout']);
     }
 
@@ -42,8 +42,9 @@ class InspectorController extends Controller
         $model->name = $request->name;
         $model->username = $request->username;
         $model->password = bcrypt($request->password);
-        $model->enabled = $request->enabled;
+        $model->enabled = $request->boolean('enabled');
         $model->save();
+        if (!$model->enabled) { $model->tokens()->delete(); }
         return redirect()->route('inspectors.index');
     }
 
@@ -78,8 +79,9 @@ class InspectorController extends Controller
             $model->password = bcrypt($request->password);
         }
 
-        $model->enabled = $request->enabled;
+        $model->enabled = $request->boolean('enabled');
         $model->save();
+        if (!$model->enabled) { $model->tokens()->delete(); }
 
         return redirect()->route('inspectors.index');
     }

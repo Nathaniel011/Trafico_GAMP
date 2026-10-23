@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Storage;
 class ComplaintController extends Controller
 {
 
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:field-work')->only(['create', 'store', 'edit', 'update', 'setState']);
         $this->middleware('auth', ['except' => ['store', 'apiIndex']]);
     }
 

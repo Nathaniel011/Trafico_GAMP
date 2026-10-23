@@ -18,6 +18,8 @@ return [
     |
     */
 
+    'mapbox' => ['token' => env('MAPBOX_ACCESS_TOKEN', '')],
+
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),

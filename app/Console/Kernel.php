@@ -24,7 +24,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('casetas:expire')->everyMinute()->withoutOverlapping();
+        $schedule->command('casetas:cleanup-photos')->daily()->withoutOverlapping();
     }
 
     /**
