@@ -7,6 +7,7 @@ use App\Models\Caseta;
 use App\Models\TemporaryPhoto;
 use App\Services\CasetaAudit;
 use App\Services\LocationRules;
+use App\Services\SchemaCompatibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,28 +29,37 @@ class NoticeController extends Controller
     {
         $request->validate(['year' => 'nullable|integer|between:2000,2200', 'number' => 'nullable|string|max:80']);
         $mode = $this->mode($request);
-        $query = Notice::with('caseta')->whereIn('type', $mode === 'SHOP' ? ['SHOP', 'SHOPS'] : ['WAYS']);
+        $controlAvailable = SchemaCompatibility::casetaControlAvailable();
+        $query = Notice::query()->whereIn('type', $mode === 'SHOP' ? ['SHOP', 'SHOPS'] : ['WAYS']);
+        if ($controlAvailable) { $query->with('caseta'); }
         if ($request->filled('year')) {
             $start = Carbon::create((int) $request->year, 1, 1, 0, 0, 0, config('app.timezone'));
-            $query->where(function ($q) use ($start, $request) {
+            if (!$controlAvailable) {
+                $query->where('notice_date', '>=', $start)->where('notice_date', '<', $start->copy()->addYear());
+            } else { $query->where(function ($q) use ($start, $request) {
                 $q->where('year', (int) $request->year)->orWhere(function ($old) use ($start) {
                     $old->whereNull('year')->where('notice_date', '>=', $start)->where('notice_date', '<', $start->copy()->addYear());
                 });
-            });
+            }); }
         }
         if ($request->filled('number')) { $query->where('number', $request->number); }
         $list = $query->orderByDesc('notice_date')->paginate(30)->withQueryString();
+        if (!$controlAvailable) { $list->each(fn ($notice) => $notice->setRelation('caseta', null)); }
         return view('notices.index', compact('list', 'mode'));
     }
 
     public function create(Request $request)
     {
+        if (!SchemaCompatibility::casetaControlAvailable()) {
+            return view('notices.legacy-create', ['mode' => $this->mode($request)]);
+        }
         $caseta = $request->filled('caseta_id') ? Caseta::findOrFail($request->caseta_id) : null;
         return view('notices.create', ['model' => new Notice(), 'mode' => $this->mode($request), 'caseta' => $caseta]);
     }
 
     public function store(Request $request)
     {
+        if (!SchemaCompatibility::casetaControlAvailable()) { return $this->storeLegacy($request); }
         $mode = $this->mode($request);
         $request->validate([
             'file' => 'required_without:photo_id|nullable|file|image|mimes:jpg,jpeg,png,webp|max:10240', 'photo_id' => 'nullable|uuid',
@@ -141,7 +151,11 @@ class NoticeController extends Controller
 
     public function show(Request $request, $id)
     {
-        $model = Notice::with('caseta')->findOrFail($id);
+        $controlAvailable = SchemaCompatibility::casetaControlAvailable();
+        $query = Notice::query();
+        if ($controlAvailable) { $query->with('caseta'); }
+        $model = $query->findOrFail($id);
+        if (!$controlAvailable) { $model->setRelation('caseta', null); }
         return view('notices.show', ['model' => $model, 'mode' => $model->type === 'WAYS' ? 'WAYS' : 'SHOP', 'photo' => UploadedFile::where('entity_type', 'NOTICE')->where('entity_id', $id)->first()]);
     }
 
@@ -156,7 +170,7 @@ class NoticeController extends Controller
             $model->presentation_date = $request->filled('date2') ? Carbon::createFromFormat('!d/m/Y', $request->date2) : null;
             if ($request->user()->can('manage-system')) { $model->retirement = $request->filled('retirement') ? $request->boolean('retirement') : null; }
             $model->save();
-            if ($model->caseta_id) {
+            if (SchemaCompatibility::casetaControlAvailable() && $model->caseta_id) {
                 CasetaAudit::record($model->caseta_id, 'NOTICE_UPDATED', 'Actualización de notificación', ['before' => $before, 'after' => $model->toArray()]);
                 if ($request->user()->can('manage-system') && $request->has('retirement')) {
                     $caseta = Caseta::lockForUpdate()->findOrFail($model->caseta_id);
@@ -165,5 +179,66 @@ class NoticeController extends Controller
             }
         });
         return back()->with('success', 'Notificación actualizada.');
+    }
+
+    private function storeLegacy(Request $request)
+    {
+        $mode = $this->mode($request);
+        $request->validate([
+            'number' => 'required|string|max:80',
+            'date' => 'required|date_format:d/m/Y H:i',
+            'address' => 'required|string|max:255',
+            'file' => 'required|file|image|mimes:jpg,jpeg,png,webp|max:10240',
+            'caseta_id' => 'prohibited',
+            'photo_id' => 'prohibited',
+        ] + LocationRules::rules(true));
+        LocationRules::verifyExisting($request, null);
+        $date = Carbon::createFromFormat('!d/m/Y H:i', $request->date, 'America/La_Paz');
+        if ($date->greaterThan(now('America/La_Paz')->addMinute())) {
+            throw ValidationException::withMessages(['date' => 'La notificación no puede tener fecha futura.']);
+        }
+        $file = $request->file('file');
+        $path = $file->storeAs('caseta-photos', Str::uuid().'.'.$file->extension(), 'local');
+        abort_unless($path, 500, 'No se pudo almacenar la foto.');
+        try {
+            DB::transaction(function () use ($request, $mode, $date, $file, $path) {
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                        'legacy-notice:'.$mode.':'.$date->year.':'.$request->number,
+                    ]);
+                }
+                $start = $date->copy()->startOfYear();
+                if (Notice::whereIn('type', $mode === 'SHOP' ? ['SHOP', 'SHOPS'] : ['WAYS'])
+                    ->where('number', $request->number)->where('notice_date', '>=', $start)
+                    ->where('notice_date', '<', $start->copy()->addYear())->exists()) {
+                    throw ValidationException::withMessages(['number' => 'Este número ya existe en la gestión seleccionada.']);
+                }
+                $model = new Notice();
+                $model->type = $mode;
+                $model->number = $request->number;
+                $model->address = $request->address;
+                $model->lat = $request->lat;
+                $model->lng = $request->lng;
+                // El esquema original interpreta notice_date en horario de Bolivia.
+                $model->notice_date = $date;
+                $model->save();
+                $upload = new UploadedFile();
+                $upload->path = $path;
+                $upload->name = basename($path);
+                $upload->extension = $file->extension();
+                $upload->size = $file->getSize();
+                $upload->url = '';
+                $upload->entity_type = 'NOTICE';
+                $upload->entity_id = $model->id;
+                $upload->save();
+                $upload->url = route('notice-photos.show', $upload);
+                $upload->save();
+            }, 3);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            throw $e;
+        }
+        return redirect()->route('notices.index', ['mode' => $mode, 'year' => $date->year])
+            ->with('success', 'Notificación registrada.');
     }
 }

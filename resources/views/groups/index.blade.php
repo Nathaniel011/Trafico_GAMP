@@ -9,7 +9,13 @@
         <div class="card-header">
             <div class="card-tools">
                 <ul class="nav nav-pills ml-auto">
-
+                    @can('manage-system')
+                        <li class="nav-item">
+                            <a href="{{route('groups.create')}}" class="btn btn-primary">
+                                <i class="fa fa-plus" aria-hidden="true"></i> Nuevo sindicato o cooperativa
+                            </a>
+                        </li>
+                    @endcan
                 </ul>
             </div>
         </div>

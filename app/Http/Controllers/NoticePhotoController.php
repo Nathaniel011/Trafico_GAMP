@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 class NoticePhotoController extends Controller
 {
-    public function __construct() { $this->middleware('auth'); $this->middleware('can:field-work')->only('store'); }
+    public function __construct() { $this->middleware('auth'); $this->middleware('can:field-work')->only('store'); $this->middleware(\App\Http\Middleware\RequireCasetaSchema::class)->only(['store', 'preview']); }
     public function store(Request $request)
     {
         $request->validate(['file' => 'required|file|image|mimes:jpg,jpeg,png,webp|max:10240']);

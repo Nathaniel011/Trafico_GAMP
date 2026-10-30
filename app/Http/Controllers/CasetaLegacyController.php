@@ -11,6 +11,7 @@ class CasetaLegacyController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware(\App\Http\Middleware\RequireCasetaSchema::class)->only('link');
         $this->middleware('can:manage-system')->only('link');
     }
 
@@ -19,7 +20,8 @@ class CasetaLegacyController extends Controller
         $request->validate(['kind' => 'nullable|in:certificates,notices', 'q' => 'nullable|string|max:100']);
         $kind = $request->get('kind', 'certificates');
         $query = $kind === 'certificates' ? Certificate::query() : Notice::whereIn('type', ['SHOP', 'SHOPS']);
-        $query->whereNull('caseta_id');
+        $legacyMode = !\App\Services\SchemaCompatibility::casetaControlAvailable();
+        if (!$legacyMode) $query->whereNull('caseta_id');
         if ($request->filled('q')) {
             $columns = $kind === 'certificates' ? ['solicitante', 'ci', 'direccion'] : ['number', 'owner', 'document', 'address'];
             $query->where(function ($q) use ($columns, $request) {
@@ -27,9 +29,10 @@ class CasetaLegacyController extends Controller
             });
         }
         $documents = $query->orderByDesc('id')->paginate(30)->withQueryString();
-        $counts = ['certificates' => Certificate::whereNull('caseta_id')->count(),
-            'notices' => Notice::whereNull('caseta_id')->whereIn('type', ['SHOP', 'SHOPS'])->count()];
-        return view('casetas.legacy', compact('documents', 'kind', 'counts'));
+        $certificates = Certificate::query(); $notices = Notice::whereIn('type', ['SHOP', 'SHOPS']);
+        if (!$legacyMode) { $certificates->whereNull('caseta_id'); $notices->whereNull('caseta_id'); }
+        $counts = ['certificates'=>$certificates->count(), 'notices'=>$notices->count()];
+        return view('casetas.legacy', compact('documents', 'kind', 'counts', 'legacyMode'));
     }
 
     public function link(Request $request)
@@ -46,7 +49,7 @@ class CasetaLegacyController extends Controller
         return $controller->linkNotice($request, $caseta);
     }
 
-    public static function points(Request $request, int $limit): array
+    public static function points(Request $request, int $limit, bool $includeAll = false): array
     {
         if (($request->filled('license') && $request->license !== 'POR VERIFICAR') || ($request->filled('stage') && $request->stage !== 'neutral')) {
             return ['points' => [], 'total' => 0];
@@ -55,7 +58,8 @@ class CasetaLegacyController extends Controller
         $total = 0;
         foreach (['certificates', 'notices'] as $kind) {
             $query = $kind === 'certificates' ? Certificate::query() : Notice::whereIn('type', ['SHOP', 'SHOPS']);
-            $query->whereNull('caseta_id')->whereBetween('lat', [-90, 90])->whereBetween('lng', [-180, 180]);
+            if (!$includeAll) $query->whereNull('caseta_id');
+            $query->whereBetween('lat', [-90, 90])->whereBetween('lng', [-180, 180]);
             if ($request->filled(['south', 'north', 'west', 'east'])) {
                 $query->whereBetween('lat', [$request->south, $request->north])->whereBetween('lng', [$request->west, $request->east]);
             }

@@ -29,8 +29,9 @@ class CertificateHistory
 
     public static function save(Certificate $draft, ?string $expectedVersion = null, ?string $reason = null): void
     {
+        SchemaCompatibility::discardUnsupported($draft, ['caseta_id', 'accuracy', 'location_source', 'located_at', 'location_reason']);
         DB::transaction(function () use ($draft, $expectedVersion, $reason) {
-            $caseta = $draft->caseta_id ? Caseta::lockForUpdate()->findOrFail($draft->caseta_id) : null;
+            $caseta = $draft->caseta_id && SchemaCompatibility::casetaControlAvailable() ? Caseta::lockForUpdate()->findOrFail($draft->caseta_id) : null;
             $before = null;
             if ($draft->exists) {
                 $current = Certificate::lockForUpdate()->findOrFail($draft->id);
@@ -38,7 +39,7 @@ class CertificateHistory
                     throw ValidationException::withMessages(['certificate_version' => 'El certificado cambió desde que abrió el formulario. Recárguelo antes de guardar.']);
                 }
                 $before = $current->toArray();
-                if (config('features.caseta_dossier') && !$current->revisions()->exists()) { self::snapshot($current, 'Contenido histórico anterior a la primera edición con historial'); }
+                if (SchemaCompatibility::certificateHistoryAvailable() && !$current->revisions()->exists()) { self::snapshot($current, 'Contenido histórico anterior a la primera edición con historial'); }
             }
             if ($caseta && $draft->location_source === 'EXISTING'
                 && (abs($caseta->lat - $draft->lat) > 0.0000001 || abs($caseta->lng - $draft->lng) > 0.0000001)) {
@@ -46,7 +47,7 @@ class CertificateHistory
             }
             $draft->save();
             $draft->refresh();
-            $revision = config('features.caseta_dossier') ? self::snapshot($draft, $reason ?? 'Registro inicial de inspección') : null;
+            $revision = SchemaCompatibility::certificateHistoryAvailable() ? self::snapshot($draft, $reason ?? 'Registro inicial de inspección') : null;
             if ($caseta) {
                 CasetaLocation::synchronize($caseta, $draft, 'certificado #'.$draft->id);
                 CasetaAudit::record($caseta->id, $before ? 'CERTIFICATE_UPDATED' : 'CERTIFICATE_CREATED', 'Inspección / certificado #'.$draft->id,

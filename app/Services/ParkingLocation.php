@@ -28,5 +28,6 @@ class ParkingLocation
         $model->accuracy = $source === 'GPS' ? $data['accuracy'] : ($source === 'EXISTING' ? $model->accuracy : null);
         $model->located_at = $source === 'GPS' ? Carbon::parse($data['located_at'])->utc() :
             ($source === 'EXISTING' && $model->located_at ? $model->located_at : now('UTC'));
+        SchemaCompatibility::discardUnsupported($model, ['accuracy', 'location_source', 'located_at', 'location_reason']);
     }
 }

@@ -22,7 +22,7 @@ class ReportController extends Controller
         $data = Certificate::query()
             ->when($start !== '', fn ($q) => $q->whereDate('inspection_date', '>=', $start))
             ->when($end !== '', fn ($q) => $q->whereDate('inspection_date', '<=', $end))
-            ->orderBy('inspection_date')->orderBy('id')->get();
+            ->orderBy('inspection_date')->orderBy('id')->paginate(30)->withQueryString();
         return view('reports.shops', [ 'data' => $data, 'start' => $start, 'end' => $end ]);
     }
 

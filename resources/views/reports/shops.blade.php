@@ -29,9 +29,9 @@
                 </tr>
                 </thead>
                 <tbody>
-                @foreach($data as $idx => $item)
+                @forelse($data as $idx => $item)
                     <tr>
-                        <td>{{$idx+1}}</td>
+                        <td>{{ $data->firstItem() + $idx }}</td>
                         <td>
                             @php
                             $date = $item->inspection_date;
@@ -48,12 +48,16 @@
                         <td>{{$item->direccion}}</td>
                         <td>{{$item->rubro}}</td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr><td colspan="5" class="text-center">No hay registros para el período seleccionado.</td></tr>
+                @endforelse
                 </tbody>
             </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
+            <p class="mb-2">Mostrando {{ $data->firstItem() ?? 0 }} a {{ $data->lastItem() ?? 0 }} de {{ $data->total() }} registros.</p>
+            {{ $data->links('pagination::bootstrap-4') }}
         </div>
         <!-- /.card-footer-->
     </div>

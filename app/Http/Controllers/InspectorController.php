@@ -23,6 +23,12 @@ class InspectorController extends Controller
         ]);
     }
 
+    public function show($id){
+        return view('inspectors.show', [
+            'model' => Inspector::findOrFail($id)
+        ]);
+    }
+
     public function create(){
         return view('inspectors.create', [
             'model' => new Inspector()

@@ -23,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->app->make(\Illuminate\Contracts\Http\Kernel::class)->addToMiddlewarePriorityBefore(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\RequireCasetaSchema::class
+        );
         \Illuminate\Session\Middleware\AuthenticateSession::redirectUsing(fn ($request) => $request->expectsJson() ? null : route('login'));
     }
 }

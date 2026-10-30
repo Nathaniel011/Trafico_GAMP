@@ -16,6 +16,7 @@ class CasetaController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware(\App\Http\Middleware\RequireCasetaSchema::class)->except(['index', 'map', 'points']);
         $this->middleware('can:field-work')->only(['create', 'store', 'edit', 'update']);
         $this->middleware('can:manage-system')->only(['license', 'closeCase', 'linkCertificate', 'linkNotice']);
     }
@@ -58,13 +59,22 @@ class CasetaController extends Controller
 
     public function index(Request $request)
     {
+        if (!\App\Services\SchemaCompatibility::casetaControlAvailable()) return app(CasetaLegacyController::class)->index($request);
         $casetas = $this->query($request)->orderBy('number')->paginate(30)->withQueryString();
         return view('casetas.index', compact('casetas'));
     }
-    public function map() { return view('casetas.map'); }
+    public function map() { return view('casetas.map', ['legacyMode' => !\App\Services\SchemaCompatibility::casetaControlAvailable()]); }
 
     public function points(Request $request)
     {
+        if (!\App\Services\SchemaCompatibility::casetaControlAvailable()) {
+            $request->validate(['q'=>'nullable|string|max:100', 'license'=>'nullable|in:POR VERIFICAR', 'stage'=>'nullable|in:neutral',
+                'south'=>'nullable|numeric|between:-90,90', 'north'=>'nullable|numeric|between:-90,90',
+                'west'=>'nullable|numeric|between:-180,180', 'east'=>'nullable|numeric|between:-180,180']);
+            $legacy = CasetaLegacyController::points($request, 1000, true);
+            return response()->json(['points'=>[], 'total'=>0, 'legacy_points'=>$legacy['points'], 'legacy_total'=>$legacy['total'],
+                'truncated'=>$legacy['total'] > 1000, 'server_time'=>now()->toIso8601String()])->header('Cache-Control', 'private, no-store');
+        }
         $query = $this->query($request);
         if ($request->filled(['south', 'north', 'west', 'east'])) {
             $query->whereBetween('lat', [$request->south, $request->north])->whereBetween('lng', [$request->west, $request->east]);

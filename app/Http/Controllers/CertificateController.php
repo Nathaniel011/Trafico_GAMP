@@ -87,6 +87,7 @@ class CertificateController extends Controller
     public function create(Request $request){
         $model = new Certificate();
         if ($request->filled('caseta_id')) {
+            abort_unless(\App\Services\SchemaCompatibility::casetaControlAvailable(), 422, 'Esta instalación usa certificados independientes, sin ficha de caseta.');
             $caseta = \App\Models\Caseta::findOrFail($request->caseta_id);
             $model->caseta_id = $caseta->id;
             $model->solicitante = $caseta->owner;
@@ -105,7 +106,7 @@ class CertificateController extends Controller
             'celular' => 'nullable|string|max:80', 'rubro' => 'required|string|max:255',
             'legal_proceed' => 'required|boolean',
             'conclusions' => 'required_if:legal_proceed,0|nullable|string|max:10000',
-            'caseta_id' => 'nullable|integer|exists:casetas,id',
+            'caseta_id' => \App\Services\SchemaCompatibility::casetaControlAvailable() ? 'nullable|integer|exists:casetas,id' : 'prohibited',
         ];
     }
 
@@ -234,6 +235,7 @@ class CertificateController extends Controller
 
     public function history($id)
     {
+        abort_unless(\App\Services\SchemaCompatibility::certificateHistoryAvailable(), 503, 'El historial de revisiones no está disponible en esta instalación.');
         $model = Certificate::findOrFail($id);
         $revisions = $model->revisions()->paginate(20);
         return view('certificate.history', compact('model', 'revisions'));
