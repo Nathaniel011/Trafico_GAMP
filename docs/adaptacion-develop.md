@@ -86,3 +86,11 @@ En denuncias, los perfiles de consulta ven el estado como texto; no se renderiza
 Los controles administrativos existentes (perfiles, inspectores, avisos, sindicatos, licencias y cierre de procedimientos) conservan sus permisos. Los enlaces de consulta y los documentos PDF se mantienen disponibles para quien puede consultarlos.
 
 Verificación: 125 pruebas PHP y 1.512 comprobaciones aprobadas. Los cuatro perfiles se revisaron en navegador a 1440 y 390 px, comprobando botones cargados por AJAX, formularios, tablas sin errores JavaScript y respuestas 403 en accesos directos no autorizados. Los datos ficticios se usaron exclusivamente en una copia temporal.
+
+## Cuenta de instalación inicial
+
+Al ejecutar php artisan migrate --force seguido de php artisan db:seed --force sobre una instalación nueva, se crea únicamente el usuario administrador, contraseña inicial administrador y rol ADMIN. No se llaman otros seeders ni se generan inspectores o perfiles ficticios. CI y correo quedan sin completar hasta que se registren los datos reales desde Perfiles.
+
+El seeder es idempotente: no crea cuentas adicionales ni vuelve a poner la contraseña inicial si ya existen usuarios. Las actualizaciones de un servidor conservan las cuentas y contraseñas existentes. Las credenciales de instalación y los comandos se encuentran también en README.md.
+
+Verificación de la cuenta inicial: 128 pruebas PHP y 1.540 comprobaciones aprobadas. Se comprobó también el acceso local con administrador/administrador.
