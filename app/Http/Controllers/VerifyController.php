@@ -38,10 +38,10 @@ class VerifyController extends Controller
     }
 
     public function carpoints(){
-      return CarParking::all();
+      return CarParking::get(['id', 'name', 'description', 'zone', 'quantity', 'free', 'lat', 'lng', 'created_at', 'updated_at']);
     }
 
     public function motopoints(){
-      return MotoParking::all();
+      return MotoParking::get(['id', 'name', 'description', 'zone', 'quantity', 'free', 'lat', 'lng', 'created_at', 'updated_at']);
     }
 }

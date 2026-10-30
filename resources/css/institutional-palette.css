@@ -1,0 +1,15 @@
+:root {
+    --gamp-primary: #2c3e50;
+    --gamp-primary-rgb: 44, 62, 80;
+    --gamp-primary-hover: #1f2e3d;
+    --gamp-primary-soft: #eaf0f5;
+    --gamp-ink: #233541;
+    --gamp-muted: #61717e;
+    --gamp-border: #dce3e8;
+    --gamp-paper: #fff;
+    --gamp-background: #f3f5f7;
+    --gamp-sidebar: #2c3e50;
+    --gamp-sidebar-rgb: 44, 62, 80;
+    --gamp-gold: #b48b4b;
+    --gamp-radius: 9px;
+}

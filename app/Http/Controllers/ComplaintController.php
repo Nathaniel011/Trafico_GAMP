@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Storage;
 class ComplaintController extends Controller
 {
 
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:field-work')->only(['create', 'store', 'edit', 'update', 'setState']);
         $this->middleware('auth', ['except' => ['store', 'apiIndex']]);
     }
 
@@ -42,8 +42,10 @@ class ComplaintController extends Controller
 
     public function store(Request $request){
         $request->validate([
-           'plaque' => 'required',
-           'transport_line' => 'required'
+           'plaque' => 'required|string|max:255',
+           'transport_line' => 'required|string|max:255',
+           'photo' => 'nullable|string|max:13981016',
+           'notes' => 'nullable|string|max:5000'
         ], [
             'plaque.required' => 'Placa requerida.',
             'transport_line.required' => 'Linea requerida'
@@ -56,9 +58,21 @@ class ComplaintController extends Controller
         $complaint->state = 'PENDIENTE';
         $photo = (string) $request->get('photo', '');
         if(strlen($photo)>0){
-            $photo_name = "complaint-".time().".png";
-            $path = 'uploads/complaints/'.$photo_name;
-            Storage::disk('public')->put($path, base64_decode($photo));
+            $bytes = base64_decode($photo, true);
+            $info = $bytes !== false ? @getimagesizefromstring($bytes) : false;
+            if (!$info || strlen($bytes) > 10485760 || $info[0] * $info[1] > 20000000 ||
+                !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP], true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['photo' => 'Seleccione una imagen PNG, JPEG o WebP válida de hasta 10 MB.']);
+            }
+            $image = @imagecreatefromstring($bytes);
+            if (!$image) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['photo' => 'No se pudo leer la fotografía.']);
+            }
+            ob_start();
+            imagepng($image);
+            $png = ob_get_clean();
+            $path = 'uploads/complaints/complaint-'.\Illuminate\Support\Str::uuid().'.png';
+            abort_unless(Storage::disk('public')->put($path, $png), 500, 'No se pudo guardar la fotografía.');
             $complaint->photo_path = $path;
         }
         $complaint->inspector_id = $user->id;

@@ -13,10 +13,16 @@ class ReportController extends Controller
     }
 
     public function shops(Request $request){
-        $start = $request->get('start', date('Y-m-d'));
-        $end = $request->get('end', date('Y-m-d'));
-        //fechas de inspección, propietario, lugar y actividad
-        $data = Certificate::all();
+        $filters = $request->validate([
+            'start' => 'nullable|date_format:Y-m-d',
+            'end' => ['nullable', 'date_format:Y-m-d', ...($request->filled('start') ? ['after_or_equal:start'] : [])],
+        ]);
+        $start = $filters['start'] ?? '';
+        $end = $filters['end'] ?? '';
+        $data = Certificate::query()
+            ->when($start !== '', fn ($q) => $q->whereDate('inspection_date', '>=', $start))
+            ->when($end !== '', fn ($q) => $q->whereDate('inspection_date', '<=', $end))
+            ->orderBy('inspection_date')->orderBy('id')->get();
         return view('reports.shops', [ 'data' => $data, 'start' => $start, 'end' => $end ]);
     }
 

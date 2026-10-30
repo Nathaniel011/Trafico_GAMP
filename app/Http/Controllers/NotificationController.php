@@ -8,8 +8,8 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:manage-system')->only(['create', 'store', 'edit', 'update', 'delete']);
         $this->middleware('auth')->except('apiIndex');
     }
 
@@ -53,7 +53,7 @@ class NotificationController extends Controller
     }
 
     public function edit($id){
-        $model = Notification::find($id);
+        $model = Notification::findOrFail($id);
         return view('notification.edit', [
             'model' => $model
         ]);
@@ -68,7 +68,7 @@ class NotificationController extends Controller
             'required' => 'Requerido'
         ]);
 
-        $model = Notification::find($id);
+        $model = Notification::findOrFail($id);
         $model->title = $request->title;
         $model->body = $request->body;
         $model->summary = $request->body;
@@ -78,7 +78,7 @@ class NotificationController extends Controller
     }
 
     public function delete($id){
-        $model = Notification::find($id);
+        $model = Notification::findOrFail($id);
         $model->delete();
         return redirect()->route('notifications.index');
     }

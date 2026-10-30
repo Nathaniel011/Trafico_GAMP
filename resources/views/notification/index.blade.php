@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('header')
-    <h1>Notificaciones</h1>
+    <h1>Avisos</h1>
 @endsection
 
 @section('content')
@@ -9,15 +9,15 @@
         <div class="card-header">
             <div class="card-tools">
                 <ul class="nav nav-pills ml-auto">
-                    <a class="btn btn-primary" href="{{route('notices.create')}}">
+                    @can('manage-system')<a class="btn btn-primary" href="{{route('notifications.create')}}">
                         <i class="fa fa-plus"></i>
-                        Nueva notificacion
-                    </a>
+                        Nuevo aviso
+                    </a>@endcan
                 </ul>
             </div>
         </div>
         <div class="card-body">
-            <table class="table" id="main-table">
+            <div class="table-responsive"><table class="table" id="main-table">
                 <thead>
                 <tr>
                     <th>Fecha</th>
@@ -41,14 +41,14 @@
                                 <i class="fa fa-eye"></i> Mostrar
                             </a>
 
-                            <a href="{{route('notifications.edit', $model->id)}}" class="btn btn-xs btn-primary">
+                            @can('manage-system')<a href="{{route('notifications.edit', $model->id)}}" class="btn btn-xs btn-primary">
                                 <i class="fa fa-edit"></i> Editar
-                            </a>
+                            </a>@endcan
                         </td>
                     </tr>
                 @endforeach
                 </tbody>
-            </table>
+            </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
@@ -65,7 +65,7 @@
 @endpush
 
 @push('scripts')
-    <script src="{{asset('plugins/jQuery-3.6.0/jquery-3.6.0.min.js')}}"></script>
+
     <script src="{{asset('plugins/DataTables-1.11.3/js/jquery.dataTables.min.js')}}"></script>
     <script>
         $(function() {

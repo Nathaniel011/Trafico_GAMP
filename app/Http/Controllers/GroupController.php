@@ -10,8 +10,8 @@ use Illuminate\Http\Request;
 
 class GroupController extends Controller
 {
-    public function __construct()
-    {
+    public function __construct(){
+        $this->middleware('can:manage-system')->only(['create', 'store', 'edit', 'update', 'delete']);
         $this->middleware('auth')->except(['apiIndex', 'apiRoutes']);
     }
 
@@ -21,7 +21,7 @@ class GroupController extends Controller
     }
 
     public function apiRoutes($id){
-        $group = Group::find($id);
+        $group = Group::findOrFail($id);
         $routes = $group->routes()->where('enabled', true);
         return RouteResource::collection($routes->get());
     }
@@ -51,7 +51,7 @@ class GroupController extends Controller
 
         $request->validate([
             'name' => 'required',
-            'year' => 'nullable|numeric|between:1900,2023',
+            'year' => 'nullable|integer|between:1900,'.now('America/La_Paz')->year,
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
         ], [
             'required' => 'Requerido',
@@ -66,7 +66,9 @@ class GroupController extends Controller
         if($year>0){
             $date = Carbon::createFromFormat('Y', $year);
             $date->startOfYear();
-            $model->creation_date = $date;
+            $model->creation_date = $date->toDateString();
+        } else {
+            $model->creation_date = null;
         }
 
         if($request->hasFile('image')){

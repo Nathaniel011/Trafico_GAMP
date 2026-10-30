@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class RouteController extends Controller
 {
     public function apiPath($routeId){
-        $group = Route::find($routeId);
+        $group = Route::findOrFail($routeId);
         $points = $group->pathPoints()->orderBy('order', 'asc');
         return PathPointResource::collection($points->get());
     }

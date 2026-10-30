@@ -55,8 +55,12 @@
                             <label class="col-sm-2 col-form-label">Estado</label>
 
                             <div class="col-sm-10">
+                                @can('field-work')
                                 <a href="#" id="btn-accepted" class="btn-status btn btn-lg {{$model->state == 'ACEPTADO'? 'btn-primary': 'btn-outline-primary'}}" role="button" aria-pressed="true">Aceptado</a>
                                 <a href="#" id="btn-declined" class="btn-status btn btn-lg {{$model->state == 'RECHAZADO'? 'btn-danger': 'btn-outline-danger'}}" role="button" aria-pressed="true">Rechazado</a>
+                                @else
+                                    <span class="badge badge-secondary">{{ $model->state }}</span>
+                                @endcan
                             </div>
                         </div>
 
@@ -80,6 +84,7 @@
 @endpush
 
 @push('scripts')
+@can('field-work')
     <script>
         $(function(){
             $("#btn-accepted").on("click", function(e){
@@ -131,5 +136,6 @@
             });
         });
     </script>
+@endcan
 @endpush
 

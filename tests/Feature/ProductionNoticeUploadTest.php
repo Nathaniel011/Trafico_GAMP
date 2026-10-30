@@ -36,10 +36,9 @@ class ProductionNoticeUploadTest extends TestCase
         DB::purge('sqlite');
         Storage::fake('public');
 
-        require_once database_path('migrations/2025_05_26_141007_create_notices.php');
-        require_once database_path('migrations/2025_06_02_014425_create_file.php');
-        (new \CreateNotices())->up();
-        (new \CreateFile())->up();
+        Storage::fake('local');
+        $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        \App\Models\Caseta::create(['number'=>'C-001', 'owner'=>'Persona', 'document'=>'DOC-1', 'address'=>'Dirección de prueba', 'lat'=>-19.5892639, 'lng'=>-65.7536236, 'location_source'=>'MANUAL']);
     }
 
     protected function tearDown(): void
@@ -106,18 +105,18 @@ class ProductionNoticeUploadTest extends TestCase
 
         $this->post('/notices/create', $this->payload($file))
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('notices.index', ['mode' => 'SHOP']));
+            ->assertRedirect(route('notices.index', ['mode' => 'SHOP', 'year' => now('America/La_Paz')->year]));
 
         $this->assertDatabaseCount('notices', 1);
         $this->assertDatabaseCount('uploaded_files', 1);
         $upload = UploadedFileRecord::firstOrFail();
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}\.png$/', $upload->name);
         $this->assertSame('png', $upload->extension);
-        $this->assertSame('uploads/'.$upload->name, $upload->path);
-        $this->assertSame(Storage::url($upload->path), $upload->url);
+        $this->assertSame('caseta-photos/'.$upload->name, $upload->path);
+        $this->assertSame(route('notice-photos.show', $upload), $upload->url);
         $this->assertSame('NOTICE', $upload->entity_type);
         $this->assertSame(1, $upload->entity_id);
-        Storage::disk('public')->assertExists($upload->path);
+        Storage::disk('local')->assertExists($upload->path);
         $this->assertDatabaseHas('notices', ['id' => 1, 'number' => 'PRUEBA-PROD', 'type' => 'SHOP']);
     }
 
@@ -146,6 +145,7 @@ class ProductionNoticeUploadTest extends TestCase
         $user = new User();
         $user->id = 1;
         $user->name = 'Usuario de prueba';
+        $user->roles = 'INSPECTOR_NOTIFICADOR';
         $this->actingAs($user);
     }
 
@@ -154,7 +154,8 @@ class ProductionNoticeUploadTest extends TestCase
         return [
             'mode' => 'SHOP',
             'number' => 'PRUEBA-PROD',
-            'date' => '23/10/2026 10:00',
+            'date' => now('America/La_Paz')->subMinute()->format('d/m/Y H:i'),
+            'caseta_id' => 1, 'reason' => 'Control de campo', 'location_source' => 'MANUAL', 'location_reason' => 'Punto confirmado', 'location_confirmed' => 1,
             'address' => 'Direccion de prueba',
             'lat' => '-19.5892639',
             'lng' => '-65.7536236',
@@ -175,6 +176,6 @@ class ProductionNoticeUploadTest extends TestCase
     {
         $this->assertDatabaseCount('notices', 0);
         $this->assertDatabaseCount('uploaded_files', 0);
-        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 }

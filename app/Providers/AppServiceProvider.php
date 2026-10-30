@@ -23,6 +23,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        \Illuminate\Session\Middleware\AuthenticateSession::redirectUsing(fn ($request) => $request->expectsJson() ? null : route('login'));
     }
 }

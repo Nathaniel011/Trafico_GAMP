@@ -11,7 +11,14 @@
             </div>
         </div>
         <div class="card-body">
-            <table class="table table-hover table-dense" >
+            <form method="GET" action="{{ route('reports.shops') }}" class="field-filters d-flex flex-wrap align-items-end mb-3">
+                <label>Desde <input type="date" class="form-control" name="start" value="{{ old('start', $start) }}"></label>
+                <label>Hasta <input type="date" class="form-control" name="end" value="{{ old('end', $end) }}"></label>
+                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <a class="btn btn-outline-primary" href="{{ route('reports.shops') }}">Ver todos</a>
+            </form>
+            @if($errors->any())<div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>@endif
+            <div class="table-responsive"><table class="table table-hover table-dense" >
                 <thead>
                 <tr>
                     <th>#</th>
@@ -43,7 +50,7 @@
                     </tr>
                 @endforeach
                 </tbody>
-            </table>
+            </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
@@ -60,7 +67,7 @@
 @endpush
 
 @push('scripts')
-    <script src="{{asset('plugins/jQuery-3.6.0/jquery-3.6.0.min.js')}}"></script>
+
     <script src="{{asset('plugins/DataTables-1.11.3/js/jquery.dataTables.min.js')}}"></script>
     <script>
         $(function() {

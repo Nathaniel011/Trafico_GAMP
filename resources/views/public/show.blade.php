@@ -27,7 +27,7 @@ body { background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAA
 <br>
                 <center><h4>GOBIERNO AUTONOMO MUNICIPAL DE POTOSI </h4></center>
                     <center>
-                      <img class="rounded" src="{{asset('img/escudo.png')}}" alt="Card image cap" width="25%">
+                      <img class="rounded" src="{{asset('img/escudo.png')}}" alt="Card image cap" width="50%">
                     </center>
 
                         </div>

@@ -1,0 +1,47 @@
+@import './institutional-palette.css';
+
+/* Preserve the original public layout and typography with the panel's palette. */
+.institutional-landing {
+    --bs-primary: var(--gamp-primary);
+    --bs-primary-rgb: var(--gamp-primary-rgb);
+    --bs-secondary: var(--gamp-sidebar);
+    --bs-secondary-rgb: var(--gamp-sidebar-rgb);
+    color: var(--gamp-ink);
+    background: var(--gamp-paper);
+}
+.institutional-landing a { color: var(--gamp-primary); }
+.institutional-landing a:hover { color: var(--gamp-primary-hover); }
+.institutional-landing .bg-primary { background-color: var(--gamp-primary) !important; }
+.institutional-landing .bg-secondary { background-color: var(--gamp-sidebar) !important; }
+.institutional-landing .text-secondary { color: var(--gamp-ink) !important; }
+.institutional-landing .container-background {
+    background-color: var(--gamp-primary);
+    background-image: linear-gradient(to bottom, rgba(44, 62, 80, .25), rgba(31, 46, 61, .86)), url('../../public/img/traffic.jpg');
+}
+.institutional-landing .btn-primary {
+    color: #fff;
+    background: var(--gamp-primary);
+    border-color: var(--gamp-primary);
+}
+.institutional-landing .btn-primary:is(:hover, :focus, :active, .active, [aria-pressed=true]) {
+    color: #fff;
+    background: var(--gamp-primary-hover);
+    border-color: var(--gamp-primary-hover);
+}
+.institutional-landing .btn-primary:focus { box-shadow: 0 0 0 .25rem rgba(var(--gamp-primary-rgb), .25); }
+.institutional-landing .btn-outline-primary { color: var(--gamp-primary); border-color: var(--gamp-primary); }
+.institutional-landing .btn-outline-primary:is(:hover, :active) { color: #fff; background: var(--gamp-primary); border-color: var(--gamp-primary); }
+.institutional-landing .btn-outline-primary:focus { box-shadow: 0 0 0 .25rem rgba(var(--gamp-primary-rgb), .25); }
+.institutional-landing .btn-outline-secondary { color: var(--gamp-sidebar); border-color: var(--gamp-sidebar); }
+.institutional-landing .btn-outline-secondary:hover { color: #fff; background: var(--gamp-sidebar); }
+.institutional-landing .btn-outline-light { color: #fff; }
+.institutional-landing .btn-outline-light:hover { color: var(--gamp-sidebar); }
+.institutional-landing #mainNav .navbar-brand,
+.institutional-landing #mainNav .navbar-nav li.nav-item a.nav-link { color: #fff; }
+.institutional-landing #mainNav .navbar-nav li.nav-item a.nav-link:is(:hover, :focus) { color: var(--gamp-primary-soft); }
+.institutional-landing #mainNav .navbar-nav li.nav-item a.nav-link.active { color: #fff; background: var(--gamp-primary); }
+.institutional-landing .divider-custom:not(.divider-light) { color: var(--gamp-sidebar); }
+.institutional-landing .divider-custom:not(.divider-light) .divider-custom-line { background-color: var(--gamp-sidebar); }
+.institutional-landing .footer { background: var(--gamp-sidebar); }
+.institutional-landing .copyright { background: #1b262e; }
+.institutional-landing :is(a, button):focus-visible { outline: 3px solid var(--gamp-gold); outline-offset: 3px; }

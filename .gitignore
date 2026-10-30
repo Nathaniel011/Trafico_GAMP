@@ -3,9 +3,6 @@
 /public/storage
 /storage/*.key
 /vendor
-/.idea
-*.sqlite-wal
-*.sqlite-shm
 .env
 .env.backup
 .phpunit.result.cache
@@ -13,3 +10,16 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+
+/.local/
+
+.phpunit.cache/
+/bootstrap/cache/*.php
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/
+/storage/logs/*
+/database/*.sqlite*
+
+/.idea/

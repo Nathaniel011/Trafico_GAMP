@@ -68,10 +68,10 @@ class Php82CompatibilityTest extends TestCase
             ->assertJsonPath('recordsTotal', 1)
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonPath('data.0.solicitante', 'INSPECCION DE PRUEBA')
-            ->assertJsonPath('data.0.created_at', '15/03/2024');
+            ->assertJsonPath('data.0.created_at', '2024-03-15 10:30:00');
 
         $actions = $response->json('data.0.actions');
-        $this->assertStringContainsString(route('certificate.edit', 1), $actions);
+        $this->assertStringContainsString(route('certificate.legal.edit', 1), $actions);
         $this->assertStringContainsString(route('certificate.show', 1), $actions);
         $this->assertStringContainsString(route('certificate.showqr', 1), $actions);
     }
@@ -121,13 +121,14 @@ class Php82CompatibilityTest extends TestCase
             'lat' => '-19.5892639',
             'lng' => '-65.7536236',
             'conclusions' => 'Observacion de prueba',
+            'location_source' => 'MANUAL', 'location_reason' => 'Ubicación confirmada en campo', 'location_confirmed' => 1,
         ])->assertSessionHasNoErrors()
-            ->assertRedirect(route('certificate.show', 1));
+            ->assertRedirect(route('certificate.index'));
 
         $certificate = Certificate::findOrFail(1);
         $this->assertSame('PERSONA DE PRUEBA', $certificate->solicitante);
         $this->assertSame('', $certificate->celular);
-        $this->assertSame('2024-03-15', $certificate->inspection_date);
+        $this->assertNull($certificate->inspection_date, 'The optional phone must not prevent legal registration or complete the technical stage.');
     }
 
     public function test_sanctum_can_read_a_preexisting_token_without_expiry_column(): void
@@ -224,7 +225,7 @@ class Php82CompatibilityTest extends TestCase
         ]);
     }
 
-    public function test_notice_deadlines_retain_whole_absolute_days_after_carbon_upgrade(): void
+    public function test_legacy_notices_do_not_infer_a_third_notice_deadline(): void
     {
         Schema::create('notices', function (Blueprint $table) {
             $table->id();
@@ -271,8 +272,8 @@ class Php82CompatibilityTest extends TestCase
 
             foreach ($rows as $row) {
                 $columns = $row->getElementsByTagName('td');
-                $number = trim($columns->item(0)->textContent);
-                $this->assertSame($cases[$number][1], trim($columns->item(4)->textContent), $number);
+                $number = explode(' / ', trim($columns->item(0)->textContent))[0];
+                $this->assertSame('Histórico sin secuencia verificada', trim($columns->item(4)->textContent), $number);
             }
         } finally {
             Carbon::setTestNow();
@@ -290,14 +291,8 @@ class Php82CompatibilityTest extends TestCase
         ]);
         $this->actingAs($this->webUser('ADMIN'));
 
-        // The legacy action calls TCPDF Output directly instead of returning a response.
-        ob_start();
-        try {
-            $response = $this->get('/certificate/qr/1');
-            $pdf = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
+        $response = $this->get('/certificate/qr/1');
+        $pdf = $response->getContent();
 
         $response->assertOk();
         $this->assertStringStartsWith('%PDF-', $pdf);
@@ -338,26 +333,31 @@ class Php82CompatibilityTest extends TestCase
             'updated_at' => '2024-03-15 10:30:00',
         ]);
         $this->actingAs($this->webUser('ADMIN'));
-        $realPdf = PDF::getFacadeRoot();
-        $proxy = Mockery::mock($realPdf);
-        // Keep TCPDF rendering real; replace only the external Mapbox image dependency.
-        $proxy->shouldReceive('Image')->once()->andReturnUsing(function (...$arguments) use ($realPdf) {
-            $this->assertStringStartsWith('https://api.mapbox.com/', $arguments[0]);
-            $arguments[0] = public_path('img/potosi.png');
-
-            return $realPdf->Image(...$arguments);
-        });
-        PDF::swap($proxy);
+        $capture = app(\App\Services\CertificateMapCapture::class);
+        $certificate = Certificate::findOrFail(1);
+        $this->post('/certificate/map-capture/1', [
+            'version' => $capture->version($certificate),
+            'image' => \Illuminate\Http\UploadedFile::fake()->image('croquis.png', 640, 400),
+        ], ['Accept' => 'application/json'])->assertOk();
+        $this->assertNotNull($capture->get($certificate));
+        $owner = auth()->user();
+        $other = clone $owner;
+        $other->id = 987654;
+        $this->actingAs($other);
+        $this->assertNull($capture->get($certificate));
+        $this->actingAs($owner);
+        $this->post('/certificate/map-capture/1', [
+            'version' => 'version-antigua',
+            'image' => \Illuminate\Http\UploadedFile::fake()->image('croquis.png', 640, 400),
+        ], ['Accept' => 'application/json'])->assertStatus(409);
+        $this->post('/certificate/map-capture/1', [
+            'version' => $capture->version($certificate),
+            'image' => \Illuminate\Http\UploadedFile::fake()->image('croquis.png', 10, 10),
+        ], ['Accept' => 'application/json'])->assertStatus(422);
         $this->withoutExceptionHandling();
 
-        ob_start();
-        try {
-            $response = $this->get('/certificate/pdf/1');
-            $pdf = ob_get_contents();
-        } finally {
-            ob_end_clean();
-            PDF::swap($realPdf);
-        }
+        $response = $this->get('/certificate/pdf/1');
+        $pdf = $response->getContent();
 
         $response->assertOk();
         $this->assertStringStartsWith('%PDF-', $pdf);
@@ -418,17 +418,24 @@ class Php82CompatibilityTest extends TestCase
             foreach ([
                 'tipo', 'modalidad', 'solicitante', 'ci', 'celular', 'rubro',
                 'direccion', 'tipo_via', 'ref_product', 'ref_turn', 'ref_start',
-                'ref_end', 'color', 'material', 'conclusions', 'inspection_date', 'code',
+                'ref_end', 'color', 'material', 'conclusions', 'inspection_date', 'code', 'location_source', 'location_reason',
             ] as $column) {
                 $table->string($column)->nullable();
             }
-            foreach (['dim_ancho', 'dim_largo', 'dim_via', 'dim_perc_ocupado', 'lat', 'lng'] as $column) {
+            foreach (['dim_ancho', 'dim_largo', 'dim_via', 'dim_perc_ocupado', 'lat', 'lng', 'accuracy'] as $column) {
                 $table->double($column)->nullable();
             }
+            $table->timestamp('located_at')->nullable();
             $table->boolean('technical_proceed')->nullable();
             $table->boolean('legal_proceed')->nullable();
             $table->timestamps();
         });
+        Schema::create('certificate_revisions', function (Blueprint $table) {
+            $table->id(); $table->foreignId('certificate_id'); $table->unsignedInteger('revision');
+            $table->json('snapshot'); $table->string('actor_type',80)->nullable(); $table->unsignedBigInteger('actor_id')->nullable();
+            $table->text('reason'); $table->timestamp('created_at'); $table->unique(['certificate_id','revision']);
+        });
+
     }
 
     private function createInspectorAndTokenTable(bool $includeExpiry): Inspector

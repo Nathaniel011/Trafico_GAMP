@@ -9,7 +9,7 @@
         <div class="card-header">
             <div class="card-tools">
                 <ul class="nav nav-pills ml-auto">
-                    @if(str_contains(auth()->user()->roles, 'ADMIN'))
+                    @if(auth()->user()->can('edit-certificates'))
                     <a class="btn btn-primary" href="{{route('certificate.create')}}">
                         <i class="fa fa-plus"></i>
                         Nueva certificacion
@@ -19,7 +19,7 @@
             </div>
         </div>
         <div class="card-body">
-            <table class="table" id="main-table">
+            <div class="table-responsive"><table class="table" id="main-table">
                 <thead>
                 <tr>
                     <th>Fecha</th>
@@ -27,13 +27,15 @@
                     <th>Solicitante</th>
                     <th>Rubro</th>
                     <th>Ubicación</th>
+                    <th>Estado</th>
+		    <th>Modalidad</th>
                     <th></th>
                 </tr>
                 </thead>
                 <tbody>
 
                 </tbody>
-            </table>
+            </table></div>
         </div>
         <!-- /.card-body -->
         <div class="card-footer">
@@ -50,7 +52,6 @@
 @endpush
 
 @push('scripts')
-    <script src="{{asset('plugins/jQuery-3.6.0/jquery-3.6.0.min.js')}}"></script>
     <script src="{{asset('plugins/DataTables-1.11.3/js/jquery.dataTables.min.js')}}"></script>
     <script>
         $(function() {
@@ -59,12 +60,22 @@
                 serverSide: true,
                 ajax: "{{route('certificate.data')}}",
                 columns: [
-                    {data: 'created_at', name: 'created_at'},
+                    {data: 'created_at', name: 'created_at',
+                        render: function(data, type, row) {
+                            if (type === 'display' || type === 'filter') {
+                                let date = new Date(data);
+                                return date.toLocaleDateString('es-ES');
+                            }
+                            return data;
+                        }
+                    },
                     {data: 'ci', name: 'ci'},
                     {data: 'solicitante', name: 'solicitante'},
                     {data: 'rubro', name: 'rubro'},
                     {data: 'direccion', name: 'direccion'},
-                    {data: 'actions', name: 'actions', orderable: false, searchable: false},
+                    {data: 'estado', name: 'estado'},
+		    {data: 'modalidad', name: 'modalidad'},
+                    {data: 'actions', name: 'actions', orderable: false, searchable: false}
                 ],
                 language: {
                     url: "{{asset('plugins/DataTables-1.11.3/es.json')}}"
